@@ -1,28 +1,34 @@
+import importlib
+import MayaUtils
+importlib.reload(MayaUtils)
+
+from MayaUtils import MayaWindow
+from PySide2.QtGui import QColor
 from PySide2.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSlider, QVBoxLayout, QWidget# this imports all ui widget we are going to use
-from PySide2.QtCore import Qt# this imports 
+from PySide2.QtCore import Qt, Signal
 from maya.OpenMaya import MVector
 import maya.mel as mel
 import maya.OpenMayaUI as omui# this imports mayas open maya ui module, it can help finding the maya main window
 import shiboken2# this helps with converting the maya main window to the pyside type
- 
+
 def GetMayaMainWindow()->QMainWindow:# finds maya main window and converts through shiboken
     mainWindow = omui.MQtUtil.mainWindow()
     return shiboken2.wrapInstance(int(mainWindow), QMainWindow)
- 
-def DeleteWidgettWithName(name):# 
+
+def DeleteWidgettWithName(name):
     for widget in GetMayaMainWindow().findChildren(QWidget, name):#
         widget.deleteLater()
- 
+
 class MayaWindow(QWidget):# setup for finding and deleting duplicate widgets
     def __init__(self):# constructor attaches widget to maya window, deletes copies, and gives unique name
         super().__init__(parent = GetMayaMainWindow())
         DeleteWidgettWithName(self.GetWidgetUniqueName())
         self.setWindowFlags(Qt.WindowType.Window)
         self.setObjectName(self.GetWidgetUniqueName())
- 
+
     def GetWidgetUniqueName(self):# gives an id to the widget
         return "shdkovcnaofojqefqiugfc"
- 
+
 import maya.cmds as mc
 class LimbRigger:# holds all code for the auto rigging process
     def __init__(self):# constructor initiates name places for each part of the limb
@@ -30,7 +36,7 @@ class LimbRigger:# holds all code for the auto rigging process
         self.mid = ""
         self.end = ""
         self.controllerSize = 5
-     
+
     def FindJointsBasedOnSelection(self):# finds the joints based on how you selected them in the viewport
         try:# tries to find the three joints selected
             self.root = mc.ls(sl=True, type ="joint")[0]
@@ -38,7 +44,7 @@ class LimbRigger:# holds all code for the auto rigging process
             self.end = mc.listRelatives(self.mid, c=True, type="joint")[0]
         except Exception as e:# if selected in wrong order it gives an error
             raise Exception("Wrong Selection, please select the first joint of the limb!")
- 
+
     def CreateFkControllerForJoint(self, jntName):# creates an FK controller for the joints
         ctrlName = "ac_l_fk_" + jntName
         ctrlGrpName = ctrlName +"_grp"
@@ -47,7 +53,7 @@ class LimbRigger:# holds all code for the auto rigging process
         mc.matchTransform(ctrlGrpName, jntName)
         mc.orientConstraint(ctrlName, jntName)
         return ctrlName, ctrlGrpName
-     
+
     def CreateBoxController(self, name):
         mel.eval(f"curve -n {name} -d 1 -p 0.5 0.5 0.5 -p -0.5 0.5 0.5 -p -0.5 -0.5 0.5 -p 0.5 -0.5 0.5 -p 0.5 -0.5 -0.5 -p -0.5 -0.5 -0.5 -p -0.5 0.5 -0.5 -p 0.5 0.5 -0.5 -p 0.5 0.5 0.5 -p 0.5 -0.5 0.5 -p -0.5 -0.5 0.5 -p -0.5 -0.5 -0.5 -p -0.5 0.5 -0.5 -p -0.5 0.5 0.5 -p -0.5 0.5 -0.5 -p 0.5 0.5 -0.5 -p 0.5 -0.5 -0.5 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15 -k 16 ;")
         mc.scale(self.controllerSize, self.controllerSize, self.controllerSize, name)
@@ -55,17 +61,17 @@ class LimbRigger:# holds all code for the auto rigging process
         grpName = name +"_grp"
         mc.group(name, n = grpName)
         return name, grpName 
-         
+
     def CreatePlusController(self, name):
         mel.eval(f"curve -n {name} -d 1 -p -17 0 0 -p -17 -1 0 -p -16 -1 0 -p -16 -2 0 -p -15 -2 0 -p -15 -1 0 -p -14 -1 0 -p -14 0 0 -p -15 0 0 -p -15 1 0 -p -16 1 0 -p -16 0 0 -p -17 0 0 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 ; ")
         grpName = name + "_grp"
         mc.group(name, n = grpName)
         return name, grpName
-     
+
     def GetObjectLocation(self, objectName):
         x, y, z = mc.xform(objectName, q=True, ws=True, t=True)
         return MVector(x, y, z)
-     
+
     def PrintMVector(self, vector):
         print(f"<{vector.x}, {vector.y}, {vector.z}>")
  
@@ -123,7 +129,22 @@ class LimbRigger:# holds all code for the auto rigging process
         mc.group([rootCtrlGrp, ikEndCtrlGrp, poleVectorCtrlGrp, ikfkBlendCtrlGrp], n=topGrpName)
         mc.parent(ikHandleName, ikEndCtrl)
  
- 
+class ColorPicker(QWidget):
+    colorChanged = Signal(QColor)
+    def __init__(self):
+        super().__init__()
+        self.masterLayout = QVBoxLayout()
+        self.color = QColor()
+        self.setLayout(self.masterLayout)
+        self.pickColorBtn = QPushButton()
+        self.pickColorBtn.setStyleSheet(f"background-color:black")  
+        self.pickColorBtn.clicked.connect(self.PickColorBtnClicked)
+        self.masterLayout.addWidget(self.pickColorBtn)
+
+    def PickColorBtnClicked(self):
+        self.color = QColorDialog.getColor()
+        self.pickColorBtn.setStyleSheet(f"background-color:{self.color.name()}")
+        self.colorChanged.emit(self.color)
  
 class LimbRiggerWidget(MayaWindow):# this class holds all code to create the window you interact with to auto rig the limb
     def __init__(self):# creates buttons and text for limb rigger window
