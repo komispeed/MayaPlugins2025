@@ -12,5 +12,10 @@ this plugin rigs any 3 joint limb with ik and fk and ikfk blend.
 * controller size control
 * controller color control
 
-Proxy Generator
+## Proxy Generator
+
+Breaks mesh into separate parts based on joint influence
+
+- checks if mesh is bound to joints
+- duplicates mesh and deletes prior geo
 
