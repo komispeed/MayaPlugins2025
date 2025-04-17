@@ -17,5 +17,6 @@ this plugin rigs any 3 joint limb with ik and fk and ikfk blend.
 Breaks mesh into separate parts based on joint influence
 
 - checks if mesh is bound to joints
-- duplicates mesh and deletes prior geo
+- duplicates mesh and copies weighting
+- has global visibility and individual visibility for each chunk created
 
